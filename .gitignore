@@ -8,3 +8,12 @@ dist
 *.egg-info
 src
 .idea
+.venv
+.spec-workflow
+.claude
+CLAUDE.md
+docs/
+.omc/
+uv.lock
+skills/
+readme_en.md
