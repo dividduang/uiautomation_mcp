@@ -12,6 +12,7 @@ from .tools import (
     register_query_tools,
     register_pattern_tools,
     register_helper_tools,
+    register_picker_tools,
 )
 
 # Configure logging
@@ -34,6 +35,7 @@ register_interaction_tools(mcp)
 register_query_tools(mcp)
 register_pattern_tools(mcp)
 register_helper_tools(mcp)
+register_picker_tools(mcp)
 
 
 def main():

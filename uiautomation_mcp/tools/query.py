@@ -10,8 +10,14 @@ from mcp.server.fastmcp import FastMCP
 
 import uiautomation as auto
 
-from ..core import get_control_by_handle, format_error, check_admin
+from ..core import (
+    get_control_by_token,
+    find_control,
+    format_error,
+    check_admin,
+)
 from ..config import config
+from ..models import ControlSelector
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +27,13 @@ def register_query_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_get_properties(
-        handle: int,
+        token: str,
         properties: Optional[List[str]] = None,
     ) -> dict:
         """Get properties of a control.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
             properties: Specific properties to get (default: all)
                 Options: name, className, controlType, automationId, processId,
                          enabled, visible, rect, helpText, frameworkId
@@ -38,12 +44,12 @@ def register_query_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
-                    ["句柄可能已过期，请重新查找控件"],
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"],
                 )
 
             all_props = {
@@ -84,11 +90,11 @@ def register_query_tools(mcp: FastMCP):
             return format_error("INTERNAL_ERROR", str(e))
 
     @mcp.tool()
-    def ui_get_text(handle: int) -> dict:
+    def ui_get_text(token: str) -> dict:
         """Get text content from a control.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
 
         Returns:
             Text content
@@ -96,12 +102,12 @@ def register_query_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
-                    ["句柄可能已过期，请重新查找控件"],
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"],
                 )
 
             # Try ValuePattern first
@@ -136,11 +142,11 @@ def register_query_tools(mcp: FastMCP):
             return format_error("INTERNAL_ERROR", str(e))
 
     @mcp.tool()
-    def ui_get_rect(handle: int) -> dict:
+    def ui_get_rect(token: str) -> dict:
         """Get bounding rectangle of a control.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
 
         Returns:
             Rectangle coordinates
@@ -148,12 +154,12 @@ def register_query_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
-                    ["句柄可能已过期，请重新查找控件"],
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"],
                 )
 
             rect = control.BoundingRectangle
@@ -177,14 +183,14 @@ def register_query_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_screenshot(
-        handle: int,
+        token: str,
         savePath: Optional[str] = None,
         captureCursor: bool = False,
     ) -> dict:
         """Take a screenshot of a control.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
             savePath: Path to save screenshot (default: auto-generated)
             captureCursor: Whether to capture cursor
 
@@ -194,12 +200,12 @@ def register_query_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
-                    ["句柄可能已过期，请重新查找控件"],
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"],
                 )
 
             # Generate default path
@@ -217,13 +223,13 @@ def register_query_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_exists(
-        handle: int,
+        token: str,
         timeout: float = 0,
     ) -> dict:
         """Check if a control exists.
 
         Args:
-            handle: Control handle
+            token: Control token (from find tools)
             timeout: Time to wait in seconds
 
         Returns:
@@ -232,7 +238,7 @@ def register_query_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return {"success": True, "data": {"exists": False}}
 
@@ -250,39 +256,82 @@ def register_query_tools(mcp: FastMCP):
     @mcp.tool()
     def ui_wait_for(
         condition: str,
-        timeout: float = 10,
-        parentHandle: Optional[int] = None,
+        timeout: Optional[float] = None,
+        token: Optional[str] = None,
+        name: Optional[str] = None,
+        className: Optional[str] = None,
+        automationId: Optional[str] = None,
+        controlType: Optional[str] = None,
+        depth: int = 0xFFFFFFFF,
     ) -> dict:
         """Wait for a condition to be met.
 
         Args:
             condition: Type of condition (control_exists, control_disappear, window_active)
-            timeout: Timeout in seconds
-            parentHandle: Parent control for condition check
+            timeout: Timeout in seconds (uses config.default_timeout if None)
+            token: Control token to wait for (for control_exists/control_disappear)
+            name: Control name selector (for control_exists)
+            className: Windows class name selector (for control_exists)
+            automationId: Automation ID selector (for control_exists)
+            controlType: Control type selector (for control_exists)
+            depth: Search depth for control_exists
 
         Returns:
             Whether condition was met
         """
         check_admin()
 
+        # Use default timeout if not provided
+        if timeout is None:
+            timeout = config.default_timeout
+
         try:
             start = time.time()
 
             while time.time() - start < timeout:
-                if condition == "control_exists" and parentHandle:
-                    control = get_control_by_handle(parentHandle)
-                    if control and control.Exists():
+                if condition == "control_exists":
+                    # Try to find control using token or selector parameters
+                    if token:
+                        control = get_control_by_token(token)
+                    else:
+                        # Build selector from parameters
+                        selector = ControlSelector(
+                            name=name,
+                            class_name=className,
+                            automation_id=automationId,
+                            control_type=controlType,
+                            depth=depth,
+                        )
+                        control = find_control(selector)
+
+                    if control and control.Exists(0, 0):
                         return {"success": True, "data": {"met": True, "condition": condition}}
 
-                elif condition == "control_disappear" and parentHandle:
-                    control = get_control_by_handle(parentHandle)
-                    if not control or not control.Exists():
+                elif condition == "control_disappear":
+                    # Check if control has disappeared
+                    if token:
+                        control = get_control_by_token(token)
+                    else:
+                        selector = ControlSelector(
+                            name=name,
+                            class_name=className,
+                            automation_id=automationId,
+                            control_type=controlType,
+                            depth=depth,
+                        )
+                        control = find_control(selector)
+
+                    if not control or not control.Exists(0, 0):
                         return {"success": True, "data": {"met": True, "condition": condition}}
 
                 elif condition == "window_active":
-                    fg = auto.GetForegroundControl()
-                    if parentHandle and fg and fg.NativeWindowHandle == parentHandle:
-                        return {"success": True, "data": {"met": True, "condition": condition}}
+                    # Wait for window to become active (requires token to check)
+                    if token:
+                        control = get_control_by_token(token)
+                        if control:
+                            fg = auto.GetForegroundControl()
+                            if fg and fg.NativeWindowHandle == control.NativeWindowHandle:
+                                return {"success": True, "data": {"met": True, "condition": condition}}
 
                 time.sleep(0.5)
 

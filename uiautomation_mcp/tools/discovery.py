@@ -11,7 +11,8 @@ import uiautomation as auto
 from ..core import (
     control_to_info,
     find_control,
-    get_control_by_handle,
+    register_control,
+    get_control_by_token,
     format_error,
     check_admin,
 )
@@ -67,7 +68,8 @@ def register_discovery_tools(mcp: FastMCP):
                     ]
                 )
 
-            return {"success": True, "data": control_to_info(control).model_dump()}
+            token = register_control(control)
+            return {"success": True, "data": control_to_info(control, token=token).model_dump()}
 
         except Exception as e:
             logger.exception("ui_find_window failed")
@@ -130,7 +132,8 @@ def register_discovery_tools(mcp: FastMCP):
                     {"searchParams": selector.model_dump()},
                 )
 
-            return {"success": True, "data": control_to_info(control).model_dump()}
+            token = register_control(control)
+            return {"success": True, "data": control_to_info(control, token=token).model_dump()}
 
         except Exception as e:
             logger.exception("ui_find_control failed")
@@ -138,13 +141,13 @@ def register_discovery_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_get_children(
-        handle: int,
+        token: str,
         depth: int = 1,
     ) -> dict:
         """Get children of a control.
 
         Args:
-            handle: Parent control handle
+            token: Parent control token (from find tools)
             depth: Depth to traverse (default 1 = direct children only)
 
         Returns:
@@ -153,12 +156,12 @@ def register_discovery_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
-                    ["句柄可能已过期，请重新查找控件"],
+                    f"控件 token 无效或已过期: {token}",
+                    ["token 可能已过期，请重新查找控件"],
                 )
 
             children = []
@@ -167,7 +170,8 @@ def register_discovery_tools(mcp: FastMCP):
                 if current_depth > depth:
                     return
                 for child in ctrl.GetChildren():
-                    children.append(control_to_info(child).model_dump())
+                    token = register_control(child)
+                    children.append(control_to_info(child, token=token).model_dump())
                     walk(child, current_depth + 1)
 
             walk(control, 1)
@@ -191,7 +195,8 @@ def register_discovery_tools(mcp: FastMCP):
             if not control:
                 return format_error("NO_FOCUSED_CONTROL", "无法获取焦点控件")
 
-            return {"success": True, "data": control_to_info(control).model_dump()}
+            token = register_control(control)
+            return {"success": True, "data": control_to_info(control, token=token).model_dump()}
 
         except Exception as e:
             logger.exception("ui_get_focused failed")
@@ -211,7 +216,8 @@ def register_discovery_tools(mcp: FastMCP):
             if not control:
                 return format_error("NO_FOREGROUND_WINDOW", "无法获取前台窗口")
 
-            return {"success": True, "data": control_to_info(control).model_dump()}
+            token = register_control(control)
+            return {"success": True, "data": control_to_info(control, token=token).model_dump()}
 
         except Exception as e:
             logger.exception("ui_get_foreground failed")
@@ -241,7 +247,8 @@ def register_discovery_tools(mcp: FastMCP):
                     f"坐标 ({x}, {y}) 处没有控件",
                 )
 
-            return {"success": True, "data": control_to_info(control).model_dump()}
+            token = register_control(control)
+            return {"success": True, "data": control_to_info(control, token=token).model_dump()}
 
         except Exception as e:
             logger.exception("ui_control_from_point failed")

@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
+import re
 from setuptools import find_packages, setup
-from uiautomation.version import VERSION
+
+# Read version from version.py without importing it (to work in build isolation)
+with open('uiautomation/version.py', 'r', encoding='utf-8') as f:
+    VERSION = re.search(r"VERSION\s*=\s*['\"]([^'\"]+)['\"]", f.read()).group(1)
 
 requires = ['comtypes>=1.2.1'] if sys.version_info >= (3, 7) else ['comtypes==1.2.1']
 

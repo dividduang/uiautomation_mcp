@@ -10,7 +10,7 @@ import uiautomation as auto
 from uiautomation import ScrollAmount
 
 from ..core import (
-    get_control_by_handle,
+    get_control_by_token,
     format_error,
     create_confirmation,
     confirm_operation,
@@ -25,11 +25,11 @@ def register_pattern_tools(mcp: FastMCP):
     """Register pattern tools with the MCP server."""
 
     @mcp.tool()
-    def ui_invoke(handle: int) -> dict:
+    def ui_invoke(token: str) -> dict:
         """Invoke/click a control using InvokePattern.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
 
         Returns:
             Success or error
@@ -37,11 +37,12 @@ def register_pattern_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"]
                 )
 
             pattern = control.GetInvokePattern()
@@ -60,11 +61,11 @@ def register_pattern_tools(mcp: FastMCP):
             return format_error("INTERNAL_ERROR", str(e))
 
     @mcp.tool()
-    def ui_toggle(handle: int) -> dict:
+    def ui_toggle(token: str) -> dict:
         """Toggle a control state using TogglePattern.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
 
         Returns:
             New toggle state or error
@@ -72,11 +73,12 @@ def register_pattern_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"]
                 )
 
             pattern = control.GetTogglePattern()
@@ -95,13 +97,13 @@ def register_pattern_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_expand_collapse(
-        handle: int,
+        token: str,
         action: str = "expand",
     ) -> dict:
         """Expand or collapse a control using ExpandCollapsePattern.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
             action: Action to perform (expand, collapse)
 
         Returns:
@@ -110,11 +112,12 @@ def register_pattern_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"]
                 )
 
             pattern = control.GetExpandCollapsePattern()
@@ -142,11 +145,11 @@ def register_pattern_tools(mcp: FastMCP):
             return format_error("INTERNAL_ERROR", str(e))
 
     @mcp.tool()
-    def ui_select_item(handle: int) -> dict:
+    def ui_select_item(token: str) -> dict:
         """Select an item using SelectionItemPattern.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
 
         Returns:
             Success or error
@@ -154,11 +157,12 @@ def register_pattern_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"]
                 )
 
             pattern = control.GetSelectionItemPattern()
@@ -177,14 +181,14 @@ def register_pattern_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_scroll(
-        handle: int,
+        token: str,
         direction: str = "down",
         amount: str = "large",
     ) -> dict:
         """Scroll a control using ScrollPattern.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
             direction: Scroll direction (up, down, left, right)
             amount: Scroll amount (large, small)
 
@@ -194,11 +198,12 @@ def register_pattern_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"]
                 )
 
             pattern = control.GetScrollPattern()
@@ -217,16 +222,20 @@ def register_pattern_tools(mcp: FastMCP):
                 )
 
             # Map direction and amount to ScrollAmount
-            scroll_amount = ScrollAmount.LargeIncrement if amount == "large" else ScrollAmount.SmallIncrement
+            # Decrement = scroll up/left (0 or 1), Increment = scroll down/right (3 or 4)
+            decrement = ScrollAmount.LargeDecrement if amount == "large" else ScrollAmount.SmallDecrement
+            increment = ScrollAmount.LargeIncrement if amount == "large" else ScrollAmount.SmallIncrement
 
+            # Scroll(horizontalAmount, verticalAmount): vertical is the 2nd param,
+            # horizontal is the 1st param. up/down -> vertical, left/right -> horizontal.
             if direction == "up":
-                pattern.Scroll(ScrollAmount.NoAmount, scroll_amount)
+                pattern.Scroll(ScrollAmount.NoAmount, decrement)
             elif direction == "down":
-                pattern.Scroll(ScrollAmount.NoAmount, scroll_amount)
+                pattern.Scroll(ScrollAmount.NoAmount, increment)
             elif direction == "left":
-                pattern.Scroll(scroll_amount, ScrollAmount.NoAmount)
+                pattern.Scroll(decrement, ScrollAmount.NoAmount)
             elif direction == "right":
-                pattern.Scroll(scroll_amount, ScrollAmount.NoAmount)
+                pattern.Scroll(increment, ScrollAmount.NoAmount)
             else:
                 return format_error(
                     "INVALID_DIRECTION",

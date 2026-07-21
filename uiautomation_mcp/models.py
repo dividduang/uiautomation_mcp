@@ -8,7 +8,8 @@ from enum import Enum
 
 class ControlInfo(BaseModel):
     """Control information returned by discovery tools."""
-    handle: int = Field(..., description="NativeWindowHandle for subsequent operations")
+    handle: int = Field(..., description="NativeWindowHandle for debugging (0 for controls without handle)")
+    token: str = Field(..., description="Unique token for retrieving this control from subsequent operations")
     name: str = Field("", description="Control name")
     class_name: str = Field("", alias="className", description="Windows class name")
     control_type: str = Field("", alias="controlType", description="Control type name")

@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 import uiautomation as auto
 
 from ..core import (
-    get_control_by_handle,
+    get_control_by_token,
     format_error,
     create_confirmation,
     confirm_operation,
@@ -21,16 +21,13 @@ from ..models import MouseButton
 
 logger = logging.getLogger(__name__)
 
-# Store pending confirmations for dangerous operations
-_pending_confirms = {}
-
 
 def register_interaction_tools(mcp: FastMCP):
     """Register interaction tools with the MCP server."""
 
     @mcp.tool()
     def ui_click(
-        handle: Optional[int] = None,
+        token: Optional[str] = None,
         x: Optional[int] = None,
         y: Optional[int] = None,
         button: str = "left",
@@ -39,9 +36,9 @@ def register_interaction_tools(mcp: FastMCP):
         """Click on a control or at coordinates.
 
         Args:
-            handle: Control handle to click (uses center if no x/y)
-            x: Relative X offset from control center, or absolute if no handle
-            y: Relative Y offset from control center, or absolute if no handle
+            token: Control token from find tools (e.g., from ui_find_window)
+            x: Relative X offset from control center, or absolute if no token
+            y: Relative Y offset from control center, or absolute if no token
             button: Mouse button (left, right, middle)
             double: Whether to double-click
 
@@ -52,8 +49,12 @@ def register_interaction_tools(mcp: FastMCP):
 
         try:
             # Click at absolute coordinates
-            if handle is None and x is not None and y is not None:
-                if button == "right":
+            if token is None and x is not None and y is not None:
+                if button == "right" and double:
+                    # Right double-click: execute twice
+                    auto.RightClick(x, y)
+                    auto.RightClick(x, y)
+                elif button == "right":
                     auto.RightClick(x, y)
                 elif button == "middle":
                     auto.MiddleClick(x, y)
@@ -64,15 +65,23 @@ def register_interaction_tools(mcp: FastMCP):
                 return {"success": True, "data": {"action": "click", "x": x, "y": y}}
 
             # Click on control
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    [
+                        "使用 find 工具重新获取控件",
+                        "确认控件仍然存在且可用",
+                    ]
                 )
 
             # Determine click method
-            if button == "right":
+            if button == "right" and double:
+                # Right double-click: execute twice
+                control.RightClick(x, y)
+                control.RightClick(x, y)
+            elif button == "right":
                 control.RightClick(x, y)
             elif button == "middle":
                 control.MiddleClick(x, y)
@@ -81,7 +90,7 @@ def register_interaction_tools(mcp: FastMCP):
             else:
                 control.Click(x, y)
 
-            return {"success": True, "data": {"action": "click", "handle": handle}}
+            return {"success": True, "data": {"action": "click", "token": token}}
 
         except Exception as e:
             logger.exception("ui_click failed")
@@ -89,14 +98,14 @@ def register_interaction_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_send_keys(
-        handle: int,
+        token: str,
         text: str,
         interval: float = 0.05,
     ) -> dict:
         """Send keyboard input to a control.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
             text: Text/keys to send (use {Ctrl}, {Enter}, etc. for special keys)
             interval: Interval between keystrokes in seconds
 
@@ -106,11 +115,12 @@ def register_interaction_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"]
                 )
 
             control.SendKeys(text, interval=interval)
@@ -122,13 +132,13 @@ def register_interaction_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_set_value(
-        handle: int,
+        token: str,
         value: str,
     ) -> dict:
         """Set text value of a control using ValuePattern.
 
         Args:
-            handle: Control handle
+            token: Control token from find tools
             value: Value to set
 
         Returns:
@@ -137,11 +147,12 @@ def register_interaction_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"控件句柄无效: {handle}",
+                    f"控件 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取控件"]
                 )
 
             pattern = control.GetValuePattern()
@@ -161,13 +172,13 @@ def register_interaction_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_close_window(
-        handle: int,
+        token: str,
         confirmationToken: Optional[str] = None,
     ) -> dict:
         """Close a window. Requires confirmation.
 
         Args:
-            handle: Window handle
+            token: Window token from find tools
             confirmationToken: Token from previous confirmation (if required)
 
         Returns:
@@ -176,18 +187,19 @@ def register_interaction_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"窗口句柄无效: {handle}",
+                    f"窗口 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取窗口"]
                 )
 
             # Check if confirmation is needed
             if config.confirmation_enabled and not confirmationToken:
                 request = create_confirmation(
                     "ui_close_window",
-                    {"windowName": control.Name, "handle": handle},
+                    {"windowName": control.Name, "token": token},
                     f"即将关闭窗口「{control.Name}」，是否继续？",
                 )
                 return {"success": False, "requiresConfirmation": True, "confirmation": request.model_dump()}
@@ -207,7 +219,7 @@ def register_interaction_tools(mcp: FastMCP):
                 control.SetFocus()
                 auto.SendKeys("{Alt}{F4}")
 
-            return {"success": True, "data": {"action": "close_window", "handle": handle}}
+            return {"success": True, "data": {"action": "close_window", "token": token}}
 
         except Exception as e:
             logger.exception("ui_close_window failed")
@@ -215,7 +227,7 @@ def register_interaction_tools(mcp: FastMCP):
 
     @mcp.tool()
     def ui_move_window(
-        handle: int,
+        token: str,
         x: Optional[int] = None,
         y: Optional[int] = None,
         width: Optional[int] = None,
@@ -224,7 +236,7 @@ def register_interaction_tools(mcp: FastMCP):
         """Move and/or resize a window.
 
         Args:
-            handle: Window handle
+            token: Window token from find tools
             x: New X position (optional)
             y: New Y position (optional)
             width: New width (optional)
@@ -236,11 +248,12 @@ def register_interaction_tools(mcp: FastMCP):
         check_admin()
 
         try:
-            control = get_control_by_handle(handle)
+            control = get_control_by_token(token)
             if not control:
                 return format_error(
                     "CONTROL_NOT_FOUND",
-                    f"窗口句柄无效: {handle}",
+                    f"窗口 token 无效或已过期: {token}",
+                    ["使用 find 工具重新获取窗口"]
                 )
 
             control.MoveWindow(x, y, width, height)
