@@ -112,6 +112,51 @@ uv sync
 | `ui_show_desktop` | 显示/最小化所有窗口 |
 | `ui_get_screen_size` | 获取屏幕尺寸 |
 
+### 交互式控件抓取 (2)
+
+| 工具 | 描述 |
+|------|------|
+| `ui_interactive_pick` | 非阻塞启动 tkinter 抓取器，立即返回 `pick_id` |
+| `ui_pick_result` | 按 `pick_id` 查询抓取结果；`timeout_seconds=0` 仅检查状态 |
+
+用法示例：
+
+```text
+1. 调用 ui_interactive_pick(delay_seconds=3)
+2. 用户把鼠标移到目标控件 → 点“下一步” → 倒计时抓取 → 点“完成”
+3. 调用 ui_pick_result(pick_id) 获取结果
+```
+
+返回内容包含：
+
+- `chain`：目标控件 + 祖先链
+- `searchDepth`：从最近 `WindowControl` 到目标的层数（可直接用于 `searchDepth=`）
+- `parentWindow`：最近父窗口信息
+- `codeSuggestion`：可直接复制的 uiautomation Python 代码，例如：
+
+```python
+auto.WindowControl(Name='请选择导入Excel文件', ClassName='#32770').EditControl(
+    searchDepth=3, Name='文件名(N):', AutomationId='1148'
+)
+```
+
+点击“完成”后，所有 `codeSuggestion` 会自动复制到剪贴板。
+
+也可以在终端手动启动抓取器（不走 MCP）：
+
+```bash
+# 推荐：不打印 JSON，完成后代码进剪贴板
+uv run python -m uiautomation_mcp.picker_gui --delay 3 -q
+```
+
+**实现说明（Windows）**：为避免 Claude Code / MCP 以隐藏进程启动时 tkinter 窗口不可见，`ui_interactive_pick` 使用：
+
+```text
+pythonw.exe + DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+```
+
+结果通过 `--result-file` 写临时 JSON，由 `ui_pick_result` 读取。
+
 ## 环境变量
 
 | 变量 | 默认值 | 描述 |
