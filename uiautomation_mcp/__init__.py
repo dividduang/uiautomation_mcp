@@ -1,7 +1,5 @@
-"""UIAutomation MCP Server - Windows UI Automation via MCP Protocol."""
+"""uiautomation-cli - Windows UI Automation command-line tool (pure CLI mode)."""
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-from .server import mcp, main
-
-__all__ = ["mcp", "main", "__version__"]
+__all__ = ["__version__"]

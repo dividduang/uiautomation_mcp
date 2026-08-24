@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "uiautomation-mcp"
 version = "0.1.0"
-description = "MCP Server for Windows UI Automation"
+description = "Windows UI Automation CLI (pure CLI mode, formerly MCP Server)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
@@ -24,20 +24,23 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "fastmcp",
-    "mcp[cli]>=1.0.0",
     "pydantic>=2.0.0",
     "comtypes>=1.2.1",
 ]
 
 [project.optional-dependencies]
+mcp = [
+    "fastmcp",
+    "mcp[cli]>=1.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "overlay-arrows-and-more",
 ]
 
 [project.scripts]
-uiautomation-mcp = "uiautomation_mcp.server:main"
+uiautomation-cli = "uiautomation_mcp.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/yinkaisheng/Python-UIAutomation-for-Windows"

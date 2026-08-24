@@ -1,213 +1,147 @@
-# UIAutomation MCP Server
+# UIAutomation CLI
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![MCP](https://img.shields.io/badge/Protocol-MCP-green.svg)](https://modelcontextprotocol.io/)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)]()
 
-> 基于 [Python-UIAutomation-for-Windows](https://github.com/yinkaisheng/Python-UIAutomation-for-Windows) 的 MCP (Model Context Protocol) 服务器
+> 基于 [Python-UIAutomation-for-Windows](https://github.com/yinkaisheng/Python-UIAutomation-for-Windows) 的 **Windows UI 自动化命令行工具**（纯 CLI 模式，原 MCP Server 的 CLI 化重构）。
 
-**特别感谢** [yinkaisheng](https://github.com/yinkaisheng) 开发的优秀 UI 自动化库，本项目是其 MCP 封装实现。
+**特别感谢** [yinkaisheng](https://github.com/yinkaisheng) 开发的优秀 UI 自动化库。
 
 ---
 
 ## 简介
 
-UIAutomation MCP Server 让 AI 助手（如 Claude、ChatGPT）能够通过 MCP 协议直接操作 Windows UI 控件，实现：
+`uiautomation-cli` 让你（或 AI agent）通过命令行直接操作 Windows UI 控件：
 
-- 自动化桌面应用程序操作
-- 控件信息查询与截图
-- 键盘鼠标模拟
-- 窗口管理
+- 自动化桌面应用程序操作（SAP GUI / 记事本 / 浏览器 / 任意 Win32·WPF·Qt·Electron 应用）
+- 控件查找、属性查询与截图
+- 键盘鼠标模拟、窗口管理
+- 交互式控件拾取器（鼠标点选生成定位代码）
 
 支持的应用类型：Win32、MFC、WPF、Windows Forms、Modern UI (UWP)、Qt、Firefox、Chrome、Electron 等。
 
+---
+
 ## 安装
 
-### 方式 1: uv 安装 (推荐)
+```bash
+pip install -e .           # 或 uv sync
+pip install comtypes overlay-arrows-and-more
+```
+
+## 快速上手
 
 ```bash
-uv sync
+# 查找窗口（返回 token）
+uiautomation-cli find-window --name "无标题 - 记事本"
+# {"handle": 200284, "token": "68fba016", "name": "无标题 - 记事本", ...}
+
+# 在窗口内找编辑区
+uiautomation-cli find-control --parent-handle 200284 --control-type EditControl
+
+# 输入文本、读取、截图
+uiautomation-cli send-keys <token> "Hello"
+uiautomation-cli text <token>
+uiautomation-cli screenshot <token> --save-path shot.png
+
+# 交互式会话（token 在进程内保持热状态）
+uiautomation-cli repl
 ```
 
+> **Token 机制**：控件被找到后注册到 `~/.uiautomation/registry.json`（持久化 + 5 分钟 TTL）。
+> 每次 CLI 调用都是独立进程，token 通过句柄或祖先路径跨进程恢复 —— 这是 CLI 模式下替代
+> MCP 会话内存注册表的方案。`uiautomation-cli tokens` 查看，`clear-tokens` 清空。
 
-## 配置
+## 命令一览
 
-在 Claude Desktop 或其他 MCP 客户端的配置文件中添加：
-
-
-
-### 方式 : uv 开发模式
-
-```json
-{
-  "mcpServers": {
-    "uiautomation": {
-      "command": "uv",
-      "args": [
-        "--directory",
-        "D:\\path\\to\\Python-UIAutomation-for-Windows",
-        "run",
-        "--no-project",
-        "main.py"
-      ],
-      "type": "stdio"
-    }
-  }
-}
-```
-
-
-## 可用工具
-
-### 控件查找 (6)
-
-| 工具 | 描述 |
+### 控件查找
+| 命令 | 说明 |
 |------|------|
-| `ui_find_window` | 查找顶层窗口 |
-| `ui_find_control` | 查找子控件 |
-| `ui_get_children` | 获取子控件列表 |
-| `ui_get_focused` | 获取当前焦点控件 |
-| `ui_get_foreground` | 获取前台窗口 |
-| `ui_control_from_point` | 获取屏幕坐标处的控件 |
+| `find-window` | 按名称/类名/进程ID/句柄查找顶层窗口 |
+| `find-control` | 在父控件内查找子控件（type/name/name-contains/regex/automationId/index） |
+| `children <token>` | 获取子控件列表（--depth 控制遍历深度） |
+| `focused` | 获取当前焦点控件 |
+| `foreground` | 获取前台窗口 |
+| `from-point <x> <y>` | 获取屏幕坐标处的控件 |
 
-### 交互操作 (5)
-
-| 工具 | 描述 |
+### 交互操作
+| 命令 | 说明 |
 |------|------|
-| `ui_click` | 点击控件 (支持左键/右键/双击) |
-| `ui_send_keys` | 发送键盘输入 |
-| `ui_set_value` | 设置文本值 |
-| `ui_close_window` | 关闭窗口 (需确认) |
-| `ui_move_window` | 移动/调整窗口 |
+| `click` | 点击控件或坐标（--button left/right/middle，--double） |
+| `send-keys <token> <text>` | 发送键盘输入（{Ctrl}、{Enter} 等特殊键） |
+| `set-value <token> <value>` | ValuePattern 设置文本 |
+| `close-window <token>` | 关闭窗口（危险操作，需确认或 --yes） |
+| `move-window <token>` | 移动/调整窗口（--x --y --width --height） |
 
-### 信息查询 (6)
-
-| 工具 | 描述 |
+### 控件模式（Pattern）
+| 命令 | 说明 |
 |------|------|
-| `ui_get_properties` | 获取控件属性 |
-| `ui_get_text` | 获取文本内容 |
-| `ui_get_rect` | 获取边界矩形 |
-| `ui_screenshot` | 控件/窗口截图 |
-| `ui_exists` | 检查控件是否存在 |
-| `ui_wait_for` | 等待条件满足 |
+| `invoke <token>` | InvokePattern 调用（对话框按钮推荐，比 click 可靠） |
+| `toggle <token>` | TogglePattern 切换 |
+| `expand-collapse <token>` | 展开/折叠（--action expand/collapse） |
+| `select-item <token>` | SelectionItemPattern 选中 |
+| `scroll <token>` | 滚动（--direction --amount） |
+| `terminate-process` | 终止进程（危险操作，需确认或 --yes） |
 
-### Pattern 操作 (6)
-
-| 工具 | 描述 |
+### 查询
+| 命令 | 说明 |
 |------|------|
-| `ui_invoke` | 调用按钮 (InvokePattern) |
-| `ui_toggle` | 切换状态 (TogglePattern) |
-| `ui_expand_collapse` | 展开/折叠 (ExpandCollapsePattern) |
-| `ui_select_item` | 选择项 (SelectionItemPattern) |
-| `ui_scroll` | 滚动控件 (ScrollPattern) |
-| `ui_terminate_process` | 终止进程 (需确认) |
+| `properties <token>` | 获取属性（--properties name,rect,...） |
+| `text <token>` | 读取文本（Value→Text→LegacyIAccessible→Name 逐级回退） |
+| `rect <token>` | 边界矩形 + 中心点 |
+| `screenshot <token>` | 截图（--save-path，默认 ./screenshots） |
+| `exists <token>` | 检查是否存在（--timeout 等待） |
+| `wait-for <condition>` | 等待条件（control_exists / control_disappear / window_active） |
 
-### 辅助工具 (5)
-
-| 工具 | 描述 |
+### 辅助
+| 命令 | 说明 |
 |------|------|
-| `ui_clipboard_get` | 获取剪贴板内容 |
-| `ui_clipboard_set` | 设置剪贴板内容 |
-| `ui_list_processes` | 列出运行中的进程 |
-| `ui_show_desktop` | 显示/最小化所有窗口 |
-| `ui_get_screen_size` | 获取屏幕尺寸 |
+| `clipboard-get` / `clipboard-set <text>` | 剪贴板读写 |
+| `list-processes` | 列出进程（--filter 名称过滤） |
+| `show-desktop` | 最小化所有窗口 |
+| `screen-size` | 屏幕分辨率 |
+| `highlight` | 控件高亮边框（--color red/#00ff00，--duration 持续秒数） |
+| `pick` | 交互式拾取器（鼠标指向控件→点「完成」，输出定位代码） |
+| `tokens` / `clear-tokens` | 查看/清空 token 注册表 |
+| `repl` | 交互式 REPL 会话 |
 
-### 交互式控件抓取 (2)
-
-| 工具 | 描述 |
-|------|------|
-| `ui_interactive_pick` | 非阻塞启动 tkinter 抓取器，立即返回 `pick_id` |
-| `ui_pick_result` | 按 `pick_id` 查询抓取结果；`timeout_seconds=0` 仅检查状态 |
-
-用法示例：
-
-```text
-1. 调用 ui_interactive_pick(delay_seconds=3)
-2. 用户把鼠标移到目标控件 → 点“下一步” → 倒计时抓取 → 点“完成”
-3. 调用 ui_pick_result(pick_id) 获取结果
-```
-
-返回内容包含：
-
-- `chain`：目标控件 + 祖先链
-- `searchDepth`：从最近 `WindowControl` 到目标的层数（可直接用于 `searchDepth=`）
-- `parentWindow`：最近父窗口信息
-- `codeSuggestion`：可直接复制的 uiautomation Python 代码，例如：
-
-```python
-auto.WindowControl(Name='请选择导入Excel文件', ClassName='#32770').EditControl(
-    searchDepth=3, Name='文件名(N):', AutomationId='1148'
-)
-```
-
-点击“完成”后，所有 `codeSuggestion` 会自动复制到剪贴板。
-
-也可以在终端手动启动抓取器（不走 MCP）：
+## 常用选项
 
 ```bash
-# 推荐：不打印 JSON，完成后代码进剪贴板
-uv run python -m uiautomation_mcp.picker_gui --delay 3 -q
+--json     # 机器可读 JSON 输出（供脚本/AI agent 解析），成功退出码 0，失败 1
+--yes      # 跳过危险操作（close-window / terminate-process）的交互确认
 ```
 
-**实现说明（Windows）**：为避免 Claude Code / MCP 以隐藏进程启动时 tkinter 窗口不可见，`ui_interactive_pick` 使用：
+## 给 AI agent 的使用建议
 
-```text
-pythonw.exe + DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-```
+- **一次调用做一件事**：`find-window` → `find-control` → 操作，通过 token 串联（token 跨进程持久化）。
+- **对话框按钮用 `invoke` 而非 `click`**：invoke 走 UIA 协议，不依赖窗口前台焦点，模态对话框也能触发。
+- **批量操作用 `--json` + 管道**：`uiautomation-cli find-window --name X --json | jq .data.token`
+- **长时间会话用 `repl`**：token 在进程内缓存，恢复更快。
 
-结果通过 `--result-file` 写临时 JSON，由 `ui_pick_result` 读取。
+## 从 MCP 模式迁移
 
-## 环境变量
+- 原 MCP 工具 `ui_find_window` → CLI `find-window`，`ui_click` → `click`，其余一一对应（camelCase → kebab-case）。
+- 确认机制：MCP 的 confirmationToken 往返 → CLI 的交互确认 / `--yes`。
+- 旧 MCP 代码保留在 `uiautomation_mcp/tools/` 与 `server.py`（需 `pip install fastmcp mcp`），不再作为入口。
 
-| 变量 | 默认值 | 描述 |
-|------|--------|------|
-| `UIAUTOMATION_LOG_LEVEL` | `INFO` | 日志级别 (DEBUG/INFO/WARNING/ERROR) |
-| `UIAUTOMATION_TIMEOUT` | `10` | 默认操作超时秒数 |
-| `UIAUTOMATION_ADMIN_CHECK` | `true` | 是否检查管理员权限 |
-| `UIAUTOMATION_CONFIRMATION_ENABLED` | `true` | 危险操作确认机制 |
+## 常见问题
 
-## 安全机制
+- **控件找不到**：尝试 `--name-contains` 模糊匹配、加大 `--depth`、先用 `children` 看真实控件树。
+- **中文乱码**：CLI 已自动将 stdout 设为 UTF-8；如在旧终端仍乱码，执行 `chcp 65001`。
+- **需要管理员权限的操作**：以管理员身份运行终端。
+- **句柄为 0 的控件**（UWP/Chrome/Qt）：走祖先路径恢复，token 依然可用。
 
-以下操作需要用户确认才会执行：
-
-- `ui_close_window` - 关闭窗口
-- `ui_terminate_process` - 终止进程
-
-可通过设置 `UIAUTOMATION_CONFIRMATION_ENABLED=false` 禁用确认机制（不推荐）。
-
-## 使用示例
-
-配置完成后，你可以对 AI 助手说：
+## 项目结构
 
 ```
-请帮我打开记事本，输入 "Hello World"，然后保存到桌面
+uiautomation_mcp/
+├── cli.py          # CLI 入口（argparse 子命令 + REPL）
+├── service.py      # 31 个纯逻辑函数（无 MCP 依赖）
+├── registry.py     # 跨进程 token 注册表（JSON 持久化 + 路径恢复）
+├── core.py         # 控件查找/格式化/确认（与 MCP 共用）
+├── models.py       # Pydantic 数据模型
+├── picker_gui.py   # 交互式拾取器 GUI
+└── tools/ server.py  # 旧 MCP 层（保留，需 fastmcp 才能 import）
 ```
-
-```
-截图当前活动窗口并保存
-```
-
-```
-列出所有打开的 Chrome 标签页
-```
-
-## 系统要求
-
-- **操作系统**: Windows 7 SP1 或更高版本
-- **Python**: 3.10 或更高版本
-- **权限**: 建议以管理员权限运行以获得最佳兼容性
-
-## 注意事项
-
-1. **管理员权限**: 要自动化以管理员权限运行的应用，MCP 服务器也需要管理员权限
-2. **Chrome/Electron**: 需要添加 `--force-renderer-accessibility` 启动参数
-3. **UWP 应用**: 部分现代应用可能有访问限制
-
-## 致谢
-
-- [yinkaisheng/Python-UIAutomation-for-Windows](https://github.com/yinkaisheng/Python-UIAutomation-for-Windows) - 核心库
-- [Model Context Protocol](https://modelcontextprotocol.io/) - 协议规范
-
-## License
-
-Apache License 2.0

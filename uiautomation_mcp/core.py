@@ -237,9 +237,11 @@ def find_control(selector: ControlSelector) -> Optional[auto.Control]:
     if selector.automation_id:
         search_params["AutomationId"] = selector.automation_id
     if selector.control_type:
-        # Fix: Convert control_type string to actual ControlType value
+        # Fix: control_type must map to the ControlType enum, NOT the class
+        # (getattr(auto, 'EditControl') returns the EditControl *class*, which
+        # the search engine cannot use as a ControlType filter).
         try:
-            control_type_obj = getattr(auto, selector.control_type, None)
+            control_type_obj = getattr(auto.ControlType, selector.control_type, None)
             if control_type_obj is not None:
                 search_params["ControlType"] = control_type_obj
         except (AttributeError, TypeError):
