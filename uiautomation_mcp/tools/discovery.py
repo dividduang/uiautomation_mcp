@@ -4,7 +4,7 @@
 import logging
 from typing import Optional, List
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 import uiautomation as auto
 

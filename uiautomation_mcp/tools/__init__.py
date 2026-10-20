@@ -7,6 +7,7 @@ from .query import register_query_tools
 from .patterns import register_pattern_tools
 from .helpers import register_helper_tools
 from .picker import register_picker_tools
+from .highlight import register_highlight_tools
 
 __all__ = [
     "register_discovery_tools",
@@ -15,4 +16,5 @@ __all__ = [
     "register_pattern_tools",
     "register_helper_tools",
     "register_picker_tools",
+    "register_highlight_tools",
 ]

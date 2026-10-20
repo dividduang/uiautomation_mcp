@@ -3,10 +3,9 @@
 
 import logging
 import time
-import overlay_arrows_and_more as oaam
 from typing import Optional, Dict, Any, Union
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 import uiautomation as auto
 
@@ -35,6 +34,14 @@ def _draw_outline(
     Returns:
         Status dictionary
     """
+    try:
+        import overlay_arrows_and_more as oaam
+    except ImportError:
+        return format_error(
+            "DEPENDENCY_MISSING",
+            "缺少 overlay-arrows-and-more 依赖，请执行: pip install overlay-arrows-and-more",
+        )
+
     try:
         # 使用 overlay_arrows_and_more 进行高亮
         oaam.highlight(control, color=color, thickness=thickness)
@@ -91,11 +98,3 @@ def register_highlight_tools(mcp: FastMCP):
         except Exception as e:
             logger.exception("ui_highlight failed")
             return format_error("INTERNAL_ERROR", str(e))
-
-
-def register_all_tools(mcp: FastMCP):
-    """Register all highlight-related tools."""
-    register_highlight_tools(mcp)
-
-    # Also expose the core function for direct Python use
-    mcp.add_tool("highlight_control", _draw_outline, {"description": "Core highlight function for Python use"})

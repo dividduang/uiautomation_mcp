@@ -2,7 +2,7 @@
 """UIAutomation MCP Server entry point."""
 
 import logging
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 from . import __version__
 from .config import config
@@ -13,6 +13,7 @@ from .tools import (
     register_pattern_tools,
     register_helper_tools,
     register_picker_tools,
+    register_highlight_tools,
 )
 
 # Configure logging
@@ -36,6 +37,7 @@ register_query_tools(mcp)
 register_pattern_tools(mcp)
 register_helper_tools(mcp)
 register_picker_tools(mcp)
+register_highlight_tools(mcp)
 
 
 def main():

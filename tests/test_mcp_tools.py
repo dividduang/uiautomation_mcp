@@ -21,6 +21,7 @@ class TestControlInfo:
 
         info = ControlInfo(
             handle=12345,
+            token="abc12345",
             name="Test Window",
             class_name="WindowClass",
             control_type="WindowControl",
@@ -32,6 +33,7 @@ class TestControlInfo:
         )
 
         assert info.handle == 12345
+        assert info.token == "abc12345"
         assert info.name == "Test Window"
         assert info.class_name == "WindowClass"
         assert info.control_type == "WindowControl"
@@ -45,7 +47,7 @@ class TestControlInfo:
         """Test ControlInfo default values."""
         from uiautomation_mcp.models import ControlInfo
 
-        info = ControlInfo(handle=1)
+        info = ControlInfo(handle=1, token="abc12345")
 
         assert info.name == ""
         assert info.class_name == ""
@@ -247,7 +249,7 @@ class TestDiscoveryToolsRegistration:
     @patch("uiautomation_mcp.core.auto")
     def test_register_discovery_tools(self, mock_auto):
         """Test that discovery tools can be registered with FastMCP."""
-        from mcp.server.fastmcp import FastMCP
+        from fastmcp import FastMCP
         from uiautomation_mcp.tools.discovery import register_discovery_tools
 
         mcp = FastMCP("test-server")
@@ -259,7 +261,7 @@ class TestDiscoveryToolsRegistration:
     @patch("uiautomation_mcp.core.auto")
     def test_register_interaction_tools(self, mock_auto):
         """Test that interaction tools can be registered with FastMCP."""
-        from mcp.server.fastmcp import FastMCP
+        from fastmcp import FastMCP
         from uiautomation_mcp.tools.interaction import register_interaction_tools
 
         mcp = FastMCP("test-server")
@@ -271,7 +273,7 @@ class TestDiscoveryToolsRegistration:
     @patch("uiautomation_mcp.core.auto")
     def test_register_query_tools(self, mock_auto):
         """Test that query tools can be registered with FastMCP."""
-        from mcp.server.fastmcp import FastMCP
+        from fastmcp import FastMCP
         from uiautomation_mcp.tools.query import register_query_tools
 
         mcp = FastMCP("test-server")
@@ -283,7 +285,7 @@ class TestDiscoveryToolsRegistration:
     @patch("uiautomation_mcp.core.auto")
     def test_register_pattern_tools(self, mock_auto):
         """Test that pattern tools can be registered with FastMCP."""
-        from mcp.server.fastmcp import FastMCP
+        from fastmcp import FastMCP
         from uiautomation_mcp.tools.patterns import register_pattern_tools
 
         mcp = FastMCP("test-server")
@@ -295,7 +297,7 @@ class TestDiscoveryToolsRegistration:
     @patch("uiautomation_mcp.core.auto")
     def test_register_helper_tools(self, mock_auto):
         """Test that helper tools can be registered with FastMCP."""
-        from mcp.server.fastmcp import FastMCP
+        from fastmcp import FastMCP
         from uiautomation_mcp.tools.helpers import register_helper_tools
 
         mcp = FastMCP("test-server")
